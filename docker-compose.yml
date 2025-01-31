@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  postgresql:
+    image: postgres:latest
+    container_name: postgres_container
+    environment:
+      POSTGRES_USER: your_username
+      POSTGRES_PASSWORD: your_password
+      POSTGRES_DB: your_database
+    volumes:
+      - /home/evg/postgresql/data:/var/lib/postgresql/data
+  tg-bot:
+    image: your_custom_image:latest  # Replace with your actual image name
+    container_name: my_service_container
+    depends_on:
+      - postgresql
+    environment:
+      DB_HOST: postgresql
+      DB_PORT: 5432
+      DB_USER: your_username
+      DB_PASSWORD: your_password
+      DB_NAME: your_database
+    volumes:
+      - /home/evg/algo:/app/algo
+    links:
+        - postgresql
