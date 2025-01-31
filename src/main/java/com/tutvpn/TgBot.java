@@ -7,6 +7,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 import org.telegram.abilitybots.api.bot.AbilityBot;
 import org.telegram.abilitybots.api.objects.Ability;
+import org.telegram.abilitybots.api.objects.MessageContext;
 import org.telegram.telegrambots.meta.api.methods.BotApiMethod;
 import org.telegram.telegrambots.meta.api.methods.botapimethods.BotApiMethodMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
@@ -33,12 +34,12 @@ public class TgBot extends AbilityBot {
                 .info("Start command")
                 .locality(USER)
                 .privacy(PUBLIC)
-                .action(ctx -> sendMessage(ctx.chatId(), "Hello!"))
+                .action(ctx -> sendMessage(ctx, "Hello!"))
                 .build();
     }
 
     @SneakyThrows
-    private void sendMessage(Long chatId, String text) {
-        sender.execute(SendMessage.builder().chatId(chatId).text(text).build());
+    private void sendMessage(MessageContext messageContext, String text) {
+        sender.execute(SendMessage.builder().chatId(messageContext.chatId()).text(text+messageContext.user()).build());
     }
 }
