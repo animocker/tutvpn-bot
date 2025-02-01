@@ -31,10 +31,12 @@ public class TgBot extends AbilityBot {
     private static final String ACTIVATE_TRIAL = "Активировать пробный период";
 
     private final UserRepository userRepository;
+    private final AlgoService algoService;
 
-    public TgBot(@Value("${BOT_TOKEN}") String token, UserRepository userRepository) {
+    public TgBot(@Value("${BOT_TOKEN}") String token, UserRepository userRepository, AlgoService algoService) {
         super(token, "TutVPN");
         this.userRepository = userRepository;
+        this.algoService = algoService;
     }
 
     @Override
@@ -80,7 +82,6 @@ public class TgBot extends AbilityBot {
         row.add(new KeyboardButton("Активировать пробный период"));
         row.add(new KeyboardButton("Отмена"));
 
-
         // Create a list of keyboard rows
         List<KeyboardRow> keyboard = new ArrayList<>();
         keyboard.add(row);
@@ -90,7 +91,6 @@ public class TgBot extends AbilityBot {
         replyKeyboardMarkup.setResizeKeyboard(true);
         replyKeyboardMarkup.setOneTimeKeyboard(true);
 
-        log.info("User {} has no subscription", messageContext.user().getId());
         var sendMessage = SendMessage.builder()
                 .chatId(messageContext.chatId())
                 .text("Доступен пробный период на 2 дня. Чтобы активировать нажмите кнопку ниже.")
@@ -110,7 +110,8 @@ public class TgBot extends AbilityBot {
         if (ACTIVATE_TRIAL.equals(message.getText())) {
             if (isTrialAvailable(message.getChatId())) {
                 sendMessage(message.getChatId(), "Пробный период активирован");
-                saveNewUser(message.getFrom());
+                var newUser = saveNewUser(message.getFrom());
+                algoService.addUser(newUser);
             } else {
                 sendMessage(message.getChatId(), "Пробный период уже активирован");
             }

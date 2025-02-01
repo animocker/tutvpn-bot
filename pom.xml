@@ -96,6 +96,20 @@
 					</excludes>
 				</configuration>
 			</plugin>
+			<plugin>
+				<groupId>com.google.cloud.tools</groupId>
+				<artifactId>jib-maven-plugin</artifactId>
+				<version>3.4.4</version>
+				<configuration>
+					<to>
+						<image>registry.hub.docker.com/zhevas/tg-bot</image>
+						<auth>
+							<username>zhevas</username>
+							<password>${env.DOCKER_PASSWORD}</password>
+						</auth>
+					</to>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 
