@@ -23,7 +23,7 @@ public class UserEntity {
     private String userData;
 
     @Column(nullable = false)
-    private LocalDate expireDate;
+    private LocalDate expireDate; //
 
 
 }

@@ -18,6 +18,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.Keyboard
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
@@ -28,7 +29,8 @@ import static org.telegram.abilitybots.api.objects.Privacy.PUBLIC;
 @Slf4j
 @Component
 public class TgBot extends AbilityBot {
-    private static final String ACTIVATE_TRIAL = "Активировать пробный период";
+    private static final String ACTIVATE_TRIAL = "Активировать";
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 
     private final UserRepository userRepository;
     private final AlgoService algoService;
@@ -42,6 +44,43 @@ public class TgBot extends AbilityBot {
     @Override
     public long creatorId() {
         return 256007482;
+    }
+
+
+    public Ability algoTest() {
+        return Ability
+                .builder()
+                .name("algo")
+                .info("Тестирование Algo")
+                .locality(USER)
+                .privacy(PUBLIC)
+                .action(ctx -> algoService.updateAlgoUsers())
+                .build();
+    }
+
+    public Ability statusAbility() {
+        return Ability
+                .builder()
+                .name("status")
+                .info("Время действия VPN")
+                .locality(USER)
+                .privacy(PUBLIC)
+                .action(this::statusCheck)
+                .build();
+    }
+
+    private void statusCheck(MessageContext ctx) {
+        var userId = ctx.user().getId();
+        userRepository.findById(userId).ifPresentOrElse(
+                user -> {
+                    if (user.getExpireDate().isBefore(LocalDate.now())) {
+                        sendMessage(ctx.chatId(), "Ваш VPN истек");
+                    } else {
+                        sendMessage(ctx.chatId(), "Последний день использования VPN %s".formatted(user.getExpireDate().format(DATE_FORMATTER)));
+                    }
+                },
+                () -> sendTrialMessage(ctx)
+        );
     }
 
     public Ability startAbility() {
@@ -63,7 +102,6 @@ public class TgBot extends AbilityBot {
                 .locality(USER)
                 .privacy(PUBLIC)
                 .action(this::getVpn)
-                .reply(replyToTrial())
                 .build();
     }
 
@@ -71,13 +109,11 @@ public class TgBot extends AbilityBot {
         var userId = messageContext.user().getId();
         var user = userRepository.findById(userId);
         if (user.isEmpty()) {
-            log.info("start trial");
-            getTrial(messageContext);
+            sendTrialMessage(messageContext);
         }
     }
 
-    @SneakyThrows
-    private void getTrial(MessageContext messageContext) {
+    private ReplyKeyboardMarkup startTrialKeyboard() {
         KeyboardRow row = new KeyboardRow();
         row.add(new KeyboardButton("Активировать пробный период"));
         row.add(new KeyboardButton("Отмена"));
@@ -90,17 +126,21 @@ public class TgBot extends AbilityBot {
         replyKeyboardMarkup.setKeyboard(keyboard);
         replyKeyboardMarkup.setResizeKeyboard(true);
         replyKeyboardMarkup.setOneTimeKeyboard(true);
+        return replyKeyboardMarkup;
+    }
 
+    @SneakyThrows
+    private void sendTrialMessage(MessageContext messageContext) {
         var sendMessage = SendMessage.builder()
                 .chatId(messageContext.chatId())
                 .text("Доступен пробный период на 2 дня. Чтобы активировать нажмите кнопку ниже.")
-                .replyMarkup(replyKeyboardMarkup)
+                .replyMarkup(startTrialKeyboard())
                 .build();
 
         sender.execute(sendMessage);
     }
 
-    private Reply replyToTrial() {
+    public Reply replyToTrial() {
         BiConsumer<BaseAbilityBot, Update> action = (abilityBot, upd) -> trialReply(upd);
         return Reply.of(action, Flag.MESSAGE, upd -> !upd.getMessage().getText().startsWith("/"));
     }
