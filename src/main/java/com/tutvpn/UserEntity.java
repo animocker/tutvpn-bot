@@ -23,9 +23,6 @@ public class UserEntity {
     private String userData;
 
     @Column(nullable = false)
-    private boolean isTrialUsed;
-
-    @Column(nullable = false)
     private LocalDate expireDate;
 
 

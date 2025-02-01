@@ -108,19 +108,27 @@ public class TgBot extends AbilityBot {
     private void trialReply(Update update) {
         var message = update.getMessage();
         if (ACTIVATE_TRIAL.equals(message.getText())) {
-            sendMessage(message.getChatId(), "Пробный период активирован");
+            if (isTrialAvailable(message.getChatId())) {
+                sendMessage(message.getChatId(), "Пробный период активирован");
+                saveNewUser(message.getFrom());
+            } else {
+                sendMessage(message.getChatId(), "Пробный период уже активирован");
+            }
         }
     }
 
-    private UserEntity buildUser(User user) {
+    private boolean isTrialAvailable(Long userId) {
+        return userRepository.findById(userId).isEmpty();
+    }
+
+    private UserEntity saveNewUser(User user) {
         var newUser = new UserEntity();
         newUser.setId(user.getId());
         newUser.setUsername(user.getUserName());
         newUser.setFullName(user.getFirstName() + " " + user.getLastName());
-        newUser.setTrialUsed(true);
         newUser.setExpireDate(LocalDate.now().plusDays(2));
         newUser.setUserData(user.toString());
-        return newUser;
+        return userRepository.save(newUser);
     }
 
     @SneakyThrows
