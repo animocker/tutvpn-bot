@@ -27,6 +27,7 @@ public class AlgoService {
 
     public AlgoService(@Value("${ALGO_PATH}") String algoPath,
                        UserRepository userRepository) {
+        log.info("Algo path: {}", algoPath);
         this.algoPath = algoPath;
         this.algoDir = new File(algoPath);
         this.configFile = new File(algoDir, "config.cfg");
@@ -36,7 +37,7 @@ public class AlgoService {
     @PostConstruct
     public void init() {
         if (!algoDir.exists()) {
-            throw new RuntimeException("Algo directory not found");
+            throw new RuntimeException("Algo directory not found on path: %s".formatted(algoPath));
         }
         if (!configFile.exists()) {
             throw new RuntimeException("Config file not found");
