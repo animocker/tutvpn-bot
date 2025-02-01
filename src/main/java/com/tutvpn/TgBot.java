@@ -139,7 +139,7 @@ public class TgBot extends AbilityBot {
 
     private ReplyKeyboardMarkup startTrialKeyboard() {
         KeyboardRow row = new KeyboardRow();
-        row.add(new KeyboardButton("Активировать пробный период"));
+        row.add(new KeyboardButton(ACTIVATE_TRIAL));
         row.add(new KeyboardButton("Отмена"));
 
         // Create a list of keyboard rows
