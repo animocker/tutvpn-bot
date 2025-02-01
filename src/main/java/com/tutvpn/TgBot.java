@@ -11,6 +11,8 @@ import org.telegram.abilitybots.api.objects.Flag;
 import org.telegram.abilitybots.api.objects.MessageContext;
 import org.telegram.abilitybots.api.objects.Reply;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
+import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.User;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
@@ -74,7 +76,7 @@ public class TgBot extends AbilityBot {
         userRepository.findById(userId).ifPresentOrElse(
                 user -> {
                     if (user.getExpireDate().isBefore(LocalDate.now())) {
-                        sendMessage(ctx.chatId(), "Ваш VPN истек");
+                        sendExpiredVpnMessage(ctx.chatId());
                     } else {
                         sendMessage(ctx.chatId(), "Последний день использования VPN %s".formatted(user.getExpireDate().format(DATE_FORMATTER)));
                     }
@@ -110,7 +112,29 @@ public class TgBot extends AbilityBot {
         var user = userRepository.findById(userId);
         if (user.isEmpty()) {
             sendTrialMessage(messageContext);
+        } else {
+            sendVpnQr(userId);
         }
+    }
+
+    @SneakyThrows
+    private void sendVpnQr(Long userId) {
+        var user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+        if (user.getExpireDate().isBefore(LocalDate.now())) {
+            sendExpiredVpnMessage(userId);
+            return;
+        }
+        var qrCode = algoService.getQRCode(user);
+        var message = SendMessage.builder()
+                .chatId(userId)
+                .text("Ваш QR-код")
+                .build();
+        sender.execute(message);
+        var sendPhoto = SendPhoto.builder()
+                .chatId(userId)
+                .photo(new InputFile(qrCode))
+                .build();
+        sender.sendPhoto(sendPhoto);
     }
 
     private ReplyKeyboardMarkup startTrialKeyboard() {
@@ -149,9 +173,9 @@ public class TgBot extends AbilityBot {
         var message = update.getMessage();
         if (ACTIVATE_TRIAL.equals(message.getText())) {
             if (isTrialAvailable(message.getChatId())) {
-                sendMessage(message.getChatId(), "Пробный период активирован");
                 var newUser = saveNewUser(message.getFrom());
                 algoService.addUser(newUser);
+                sendVpnQr(message.getChatId());
             } else {
                 sendMessage(message.getChatId(), "Пробный период уже активирован");
             }
@@ -176,5 +200,9 @@ public class TgBot extends AbilityBot {
     private void sendMessage(Long chatId, String text) {
         var message = SendMessage.builder().chatId(chatId).text(text).build();
         sender.execute(message);
+    }
+
+    private void sendExpiredVpnMessage(Long chatId) {
+        sendMessage(chatId, "Ваш VPN истек");
     }
 }

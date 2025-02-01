@@ -3,10 +3,10 @@ package com.tutvpn;
 import jakarta.annotation.PostConstruct;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
@@ -19,12 +19,17 @@ import java.util.List;
 @Service
 public class AlgoService {
 
-    private static final String ALGO_PATH = "/home/evgen/REPOS/algo";
-    private final File algoDir = new File(ALGO_PATH);
-    private final File configFile = new File(algoDir, "config.cfg");
+    private final String algoPath;
+    private static final String SERVER_IP = "localhost";
+    private final File algoDir;
+    private final File configFile;
     private final UserRepository userRepository;
 
-    public AlgoService(UserRepository userRepository) {
+    public AlgoService(@Value("${ALGO_PATH}") String algoPath,
+                       UserRepository userRepository) {
+        this.algoPath = algoPath;
+        this.algoDir = new File(algoPath);
+        this.configFile = new File(algoDir, "config.cfg");
         this.userRepository = userRepository;
     }
 
@@ -56,8 +61,8 @@ public class AlgoService {
         activateUsers();
     }
 
-    public BufferedImage getQRCode(UserEntity user) {
-        return null;
+    public File getQRCode(UserEntity user) {
+        return new File(algoDir, "configs/%s/wireguard/%s.png".formatted(SERVER_IP, user.getId()));
     }
 
     //every day
@@ -93,12 +98,12 @@ public class AlgoService {
     }
 
     private void activateUsers() {
-        executeCommand("cd %s && source .env/bin/activate && ./algo update-users".formatted(ALGO_PATH));
+        executeCommand("cd %s && source .env/bin/activate && ./algo update-users".formatted(algoPath));
     }
 
     @SneakyThrows
     private static void executeCommand(String command) {
-        ProcessBuilder processBuilder = new ProcessBuilder(command.replaceAll(" +"," ").split(" "));
+        ProcessBuilder processBuilder = new ProcessBuilder(command.replaceAll(" +", " ").split(" "));
         processBuilder.redirectErrorStream(true);
         Process process = processBuilder.start();
 
