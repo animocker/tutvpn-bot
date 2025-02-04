@@ -104,6 +104,7 @@ public class AlgoService {
 
     @SneakyThrows
     private static void executeCommand(String command) {
+        log.info("[Algo] Executing command: {}", command);
         ProcessBuilder processBuilder = new ProcessBuilder(command.replaceAll(" +", " ").split(" "));
         processBuilder.redirectErrorStream(true);
         Process process = processBuilder.start();

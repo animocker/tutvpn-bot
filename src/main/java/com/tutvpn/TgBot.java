@@ -19,6 +19,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMar
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 
+import java.io.File;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -26,6 +27,7 @@ import java.util.List;
 import java.util.function.BiConsumer;
 
 import static org.telegram.abilitybots.api.objects.Locality.USER;
+import static org.telegram.abilitybots.api.objects.Privacy.ADMIN;
 import static org.telegram.abilitybots.api.objects.Privacy.PUBLIC;
 
 @Slf4j
@@ -36,11 +38,15 @@ public class TgBot extends AbilityBot {
 
     private final UserRepository userRepository;
     private final AlgoService algoService;
+    private final MessageSenderWrapper messageSenderWrapper;
+    private final RetryHelper retryHelper;
 
-    public TgBot(@Value("${BOT_TOKEN}") String token, UserRepository userRepository, AlgoService algoService) {
+    public TgBot(@Value("${BOT_TOKEN}") String token, UserRepository userRepository, AlgoService algoService, MessageSenderWrapper messageSenderWrapper, RetryHelper retryHelper) {
         super(token, "TutVPN");
         this.userRepository = userRepository;
         this.algoService = algoService;
+        this.messageSenderWrapper = messageSenderWrapper;
+        this.retryHelper = retryHelper;
     }
 
     @Override
@@ -52,10 +58,10 @@ public class TgBot extends AbilityBot {
     public Ability algoTest() {
         return Ability
                 .builder()
-                .name("algo")
+                .name("reload")
                 .info("Тестирование Algo")
                 .locality(USER)
-                .privacy(PUBLIC)
+                .privacy(ADMIN)
                 .action(ctx -> algoService.updateAlgoUsers())
                 .build();
     }
@@ -76,9 +82,9 @@ public class TgBot extends AbilityBot {
         userRepository.findById(userId).ifPresentOrElse(
                 user -> {
                     if (user.getExpireDate().isBefore(LocalDate.now())) {
-                        sendExpiredVpnMessage(ctx.chatId());
+                        messageSenderWrapper.sendExpiredVpnMessage(ctx.chatId());
                     } else {
-                        sendMessage(ctx.chatId(), "Последний день использования VPN %s".formatted(user.getExpireDate().format(DATE_FORMATTER)));
+                        messageSenderWrapper.sendMessage(ctx.chatId(), "Последний день использования VPN %s".formatted(user.getExpireDate().format(DATE_FORMATTER)));
                     }
                 },
                 () -> sendTrialMessage(ctx)
@@ -92,7 +98,7 @@ public class TgBot extends AbilityBot {
                 .info("Start command")
                 .locality(USER)
                 .privacy(PUBLIC)
-                .action(ctx -> sendMessage(ctx.chatId(), "Hello!"))
+                .action(ctx -> messageSenderWrapper.sendMessage(ctx.chatId(), "Hello!"))
                 .build();
     }
 
@@ -121,21 +127,14 @@ public class TgBot extends AbilityBot {
     private void sendVpnQr(Long userId) {
         var user = userRepository.findById(userId).orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
         if (user.getExpireDate().isBefore(LocalDate.now())) {
-            sendExpiredVpnMessage(userId);
+            messageSenderWrapper.sendExpiredVpnMessage(userId);
             return;
         }
-        var qrCode = algoService.getQRCode(user);
-        var message = SendMessage.builder()
-                .chatId(userId)
-                .text("Ваш QR-код")
-                .build();
-        sender.execute(message);
-        var sendPhoto = SendPhoto.builder()
-                .chatId(userId)
-                .photo(new InputFile(qrCode))
-                .build();
-        sender.sendPhoto(sendPhoto);
+        var qrCode = retryHelper.getQRCodeWithRetry(user);
+        messageSenderWrapper.sendQrCode(userId, qrCode);
     }
+
+
 
     private ReplyKeyboardMarkup startTrialKeyboard() {
         KeyboardRow row = new KeyboardRow();
@@ -177,7 +176,7 @@ public class TgBot extends AbilityBot {
                 algoService.addUser(newUser);
                 sendVpnQr(message.getChatId());
             } else {
-                sendMessage(message.getChatId(), "Пробный период уже активирован");
+                messageSenderWrapper.sendMessage(message.getChatId(), "Пробный период уже активирован");
             }
         }
     }
@@ -194,15 +193,5 @@ public class TgBot extends AbilityBot {
         newUser.setExpireDate(LocalDate.now().plusDays(2));
         newUser.setUserData(user.toString());
         return userRepository.save(newUser);
-    }
-
-    @SneakyThrows
-    private void sendMessage(Long chatId, String text) {
-        var message = SendMessage.builder().chatId(chatId).text(text).build();
-        sender.execute(message);
-    }
-
-    private void sendExpiredVpnMessage(Long chatId) {
-        sendMessage(chatId, "Ваш VPN истек");
     }
 }
