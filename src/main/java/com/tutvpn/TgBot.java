@@ -55,10 +55,10 @@ public class TgBot extends AbilityBot {
     }
 
 
-    public Ability algoTest() {
+    public Ability updateAlgo() {
         return Ability
                 .builder()
-                .name("reload")
+                .name("update")
                 .info("Тестирование Algo")
                 .locality(USER)
                 .privacy(ADMIN)

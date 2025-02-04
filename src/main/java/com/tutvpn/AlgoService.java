@@ -99,13 +99,12 @@ public class AlgoService {
     }
 
     private void activateUsers() {
-        executeCommand("cd %s && source .env/bin/activate && ./algo update-users  --extra-vars \"server=%s\"".formatted(algoPath, SERVER_IP));
+        executeCommand("/bin/bash", "-c", "cd %s && source .env/bin/activate && ./algo update-users --extra-vars \"server=%s\"".formatted(algoPath, SERVER_IP));
     }
 
     @SneakyThrows
-    private static void executeCommand(String command) {
-        log.info("[Algo] Executing command: {}", command);
-        ProcessBuilder processBuilder = new ProcessBuilder(command.replaceAll(" +", " ").split(" "));
+    private static void executeCommand(String... command) {
+        ProcessBuilder processBuilder = new ProcessBuilder(command);
         processBuilder.redirectErrorStream(true);
         Process process = processBuilder.start();
 
@@ -118,6 +117,5 @@ public class AlgoService {
 
         int exitCode = process.waitFor();
         log.info("[Algo] Exited with code: {}", exitCode);
-
     }
 }
