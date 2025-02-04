@@ -99,7 +99,7 @@ public class AlgoService {
     }
 
     private void activateUsers() {
-        executeCommand("cd %s && source .env/bin/activate && ./algo update-users  --extra-vars \"server=%s ca_password=''\"".formatted(algoPath, SERVER_IP));
+        executeCommand("cd %s && source .env/bin/activate && ./algo update-users  --extra-vars \"server=%s\"".formatted(algoPath, SERVER_IP));
     }
 
     @SneakyThrows
